@@ -1,6 +1,7 @@
-const API_BASE = 'http://192.168.2.28:1234/v1';
-const API_CHAT_COMPLETIONS = `${API_BASE}/chat/completions`;
-const API_MODELS = `${API_BASE}/models`;
+// Konfigurierbare API URL - kann über localStorage überschrieben werden
+let API_BASE = localStorage.getItem('lmstudio_api_base') || 'http://192.168.2.28:1234/v1';
+const API_CHAT_COMPLETIONS = () => `${API_BASE}/chat/completions`;
+const API_MODELS = () => `${API_BASE}/models`;
 
 let currentChatId = generateChatId();
 let chats = loadChats();
@@ -24,9 +25,73 @@ const modelNameEl = document.getElementById('modelName');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 
+// Add API config to header
+function setupAPIConfig() {
+    const headerInfo = document.querySelector('.header-info');
+    const configBtn = document.createElement('button');
+    configBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"/>
+            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319A1.873 1.873 0 0010.7 2.965l.292-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 00.52 1.255l.319.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 00-.52 1.255l.16.292c.415.764-.42 1.6-1.185 1.184l-.292-.159a1.873 1.873 0 00-1.255.52l-.094.319c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 00-1.255-.52l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.292A1.873 1.873 0 003.81 9.62l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 003.81 6.067l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 001.255-.52l.094-.319z"/>
+        </svg>
+    `;
+    configBtn.className = 'config-btn';
+    configBtn.title = 'API URL konfigurieren';
+    configBtn.style.cssText = `
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        padding: 4px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    `;
+    configBtn.onmouseover = () => {
+        configBtn.style.background = 'var(--bg-hover)';
+        configBtn.style.color = 'var(--text-primary)';
+    };
+    configBtn.onmouseout = () => {
+        configBtn.style.background = 'transparent';
+        configBtn.style.color = 'var(--text-secondary)';
+    };
+    configBtn.onclick = showAPIConfig;
+    headerInfo.appendChild(configBtn);
+    
+    // Update display URL
+    updateServerUrlDisplay();
+}
+
+// Update server URL display
+function updateServerUrlDisplay() {
+    const display = document.getElementById('serverUrlDisplay');
+    if (display) {
+        display.textContent = API_BASE.replace('/v1', '');
+    }
+}
+
+// Show API config dialog
+function showAPIConfig() {
+    const currentUrl = API_BASE.replace('/v1', '');
+    const newUrl = prompt('LM Studio API URL (z.B. http://192.168.2.28:1234):', currentUrl);
+    if (newUrl && newUrl !== currentUrl) {
+        API_BASE = newUrl.endsWith('/v1') ? newUrl : newUrl.replace(/\/$/, '') + '/v1';
+        localStorage.setItem('lmstudio_api_base', API_BASE);
+        updateServerUrlDisplay();
+        modelNameEl.textContent = 'Wird erkannt...';
+        statusText.textContent = 'Verbinde...';
+        statusDot.classList.remove('connected', 'error');
+        fetchModel();
+        checkConnection();
+    }
+}
+
 // Initialize app
 async function init() {
     setupEventListeners();
+    setupAPIConfig();
     await fetchModel();
     renderChatHistory();
     loadCurrentChat();
@@ -105,7 +170,7 @@ function saveChats() {
 // Fetch model from LM Studio
 async function fetchModel() {
     try {
-        const response = await fetch(API_MODELS);
+        const response = await fetch(API_MODELS());
         if (!response.ok) throw new Error('Failed to fetch models');
         const data = await response.json();
         
@@ -127,7 +192,7 @@ async function fetchModel() {
 // Check connection
 async function checkConnection() {
     try {
-        const response = await fetch(API_MODELS, { method: 'GET' });
+        const response = await fetch(API_MODELS(), { method: 'GET' });
         updateConnectionStatus(response.ok);
     } catch (error) {
         updateConnectionStatus(false);
@@ -392,7 +457,7 @@ async function getAIResponse() {
     try {
         abortController = new AbortController();
         
-        const response = await fetch(API_CHAT_COMPLETIONS, {
+        const response = await fetch(API_CHAT_COMPLETIONS(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
