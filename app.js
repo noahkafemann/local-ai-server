@@ -1,13 +1,17 @@
 // Konfigurierbare API URL - kann über localStorage überschrieben werden
 let API_BASE = localStorage.getItem('lmstudio_api_base') || 'http://192.168.2.28:1234';
 let API_VERSION = localStorage.getItem('lmstudio_api_version') || 'v1';
+let USE_CORS_PROXY = localStorage.getItem('lmstudio_use_cors_proxy') === 'true';
+let CORS_PROXY_URL = localStorage.getItem('lmstudio_cors_proxy') || '';
 
 function getChatCompletionsUrl() {
-    return `${API_BASE}/${API_VERSION}/chat/completions`;
+    const target = `${API_BASE}/${API_VERSION}/chat/completions`;
+    return USE_CORS_PROXY && CORS_PROXY_URL ? CORS_PROXY_URL + target : target;
 }
 
 function getModelsUrl() {
-    return `${API_BASE}/${API_VERSION}/models`;
+    const target = `${API_BASE}/${API_VERSION}/models`;
+    return USE_CORS_PROXY && CORS_PROXY_URL ? CORS_PROXY_URL + target : target;
 }
 
 let currentChatId = generateChatId();
@@ -88,24 +92,37 @@ function showAPIConfig() {
         display: flex; align-items: center; justify-content: center;
     `;
     modal.innerHTML = `
-        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; min-width: 420px; color: var(--text-primary);">
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; min-width: 460px; color: var(--text-primary);">
             <h3 style="margin-top: 0; color: var(--text-primary);">Einstellungen</h3>
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary);">LM Studio Basis-URL</label>
                 <input type="text" id="settingApiBase" value="${API_BASE}" style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: monospace;">
                 <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">z.B. http://192.168.2.28:1234 (ohne /v1 am Ende)</div>
             </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                    <input type="checkbox" id="settingUseProxy" ${USE_CORS_PROXY ? 'checked' : ''} style="accent-color: var(--accent-color);">
+                    Lokalen CORS-Proxy verwenden (bei Browser-CORS-Fehler)
+                </label>
+                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Starten Sie cors_proxy.py und tragen Sie dessen URL ein.</div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary);">Proxy-URL</label>
+                <input type="text" id="settingProxyUrl" value="${CORS_PROXY_URL}" style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: monospace;">
+                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">z.B. http://localhost:8081 (mit laufendem cors_proxy.py)</div>
+            </div>
             <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-top: 8px;">
-                <h4 style="margin-top: 0; color: var(--accent-color); font-size: 13px;">Wichtig bei Verbindungsfehlern:</h4>
-                <ul style="font-size: 12px; color: var(--text-secondary); margin: 8px 0; padding-left: 20px;">
-                    <li>Öffne die Datei <code>index.html</code> direkt im Browser (Datei → Öffnen)</li>
-                    <li>Oder starte lokal: <code>python -m http.server 8080</code> und öffne <code>http://localhost:8080</code></li>
-                    <li>GitHub Pages (HTTPS) blockiert HTTP-Anfragen an lokale Server (Mixed Content)</li>
-                    <li>In LM Studio: Developer → Local Server muss auf <code>192.168.2.28:1234</code> laufen</li>
-                </ul>
+                <h4 style="margin-top: 0; color: var(--accent-color); font-size: 13px;">Schritte bei Verbindungsfehlern:</h4>
+                <ol style="font-size: 12px; color: var(--text-secondary); margin: 8px 0; padding-left: 20px;">
+                    <li>LM Studio starten: Developer → Local Server auf 192.168.2.28:1234</li>
+                    <li>Proxy starten: <code>python cors_proxy.py</code> (Terminal im Projektordner)</li>
+                    <li>App öffnen: <code>http://localhost:8080</code> oder index.html direkt</li>
+                    <li>Einstellungen: Proxy aktivieren + http://localhost:8081 eintragen</li>
+                </ol>
             </div>
             <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
-                <button id="settingsCancel" style="padding: 8px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer;">Schließen</button>
+                <button id="settingsCancel" style="padding: 8px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer;">Abbrechen</button>
+                <button id="settingsSave" style="padding: 8px 16px; background: var(--accent-color); border: none; border-radius: 6px; color: white; cursor: pointer;">Speichern</button>
             </div>
         </div>
     `;
@@ -113,6 +130,28 @@ function showAPIConfig() {
     document.body.appendChild(modal);
     
     document.getElementById('settingsCancel').onclick = () => document.body.removeChild(modal);
+    document.getElementById('settingsSave').onclick = () => {
+        const baseUrl = document.getElementById('settingApiBase').value.trim().replace(/\/+$/, '').replace(/\/v1$/, '');
+        const useProxy = document.getElementById('settingUseProxy').checked;
+        const proxyUrl = document.getElementById('settingProxyUrl').value.trim().replace(/\/+$/, '');
+        
+        API_BASE = baseUrl;
+        USE_CORS_PROXY = useProxy;
+        CORS_PROXY_URL = proxyUrl;
+        
+        localStorage.setItem('lmstudio_api_base', API_BASE);
+        localStorage.setItem('lmstudio_use_cors_proxy', USE_CORS_PROXY);
+        localStorage.setItem('lmstudio_cors_proxy', CORS_PROXY_URL);
+        
+        updateServerUrlDisplay();
+        modelNameEl.textContent = 'Wird erkannt...';
+        statusText.textContent = 'Verbinde...';
+        statusDot.classList.remove('connected', 'error');
+        fetchModel();
+        checkConnection();
+        
+        document.body.removeChild(modal);
+    };
     
     modal.onclick = (e) => {
         if (e.target === modal) document.body.removeChild(modal);

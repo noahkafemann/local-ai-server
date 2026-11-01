@@ -14,13 +14,14 @@ Eine moderne, responsive Chat-Webseite im Stil von ChatGPT, die direkt mit deine
 - 🗑️ **Chat-Verwaltung** - Neue Chats starten und alle Chats löschen
 - 📱 **Responsive Design** - Optimiert für Desktop, Tablet und iPhone
 - 💾 **Lokale Speicherung** - Chats werden im Browser gespeichert (localStorage)
+- 🔧 **CORS-Proxy-Unterstützung** - Für Browser-Zugriff auf lokale LM-Studio-Instanz
 
 ## Voraussetzungen
 
 - [LM Studio](https://lmstudio.ai/) installiert und gestartet
 - Ein geladenes Modell in LM Studio
-- Server auf `http://192.168.2.28:1234` aktiviert (Einstellungen > Developer > Local Server)
-- Browser mit JavaScript-Unterstützung
+- Local Server in LM Studio aktiviert (Developer → Local Server auf `192.168.2.28:1234`)
+- Python 3 (für den optionalen CORS-Proxy)
 
 ## Installation
 
@@ -30,44 +31,54 @@ git clone https://github.com/noahkafemann/local-ai-server.git
 cd local-ai-server
 ```
 
-2. Öffne `index.html` direkt im Browser, oder hoste es über einen lokalen Server:
+2. Öffne `index.html` direkt im Browser, oder starte einen lokalen Server:
 ```bash
-# Mit Python
-python -m http.server 8000
-
-# Mit Node.js
-npx serve .
+python -m http.server 8080
+# Dann im Browser: http://localhost:8080
 ```
 
-3. Stelle sicher, dass LM Studio läuft und der Server erreichbar ist.
+3. Stelle sicher, dass LM Studio läuft und der Local Server erreichbar ist.
+
+## Wichtig: CORS-Proxy (grundlegende Voraussetzung)
+
+Browser blockieren standardmäßig Anfragen von einer Webseite (selbst localhost) an einen anderen Port/IP im lokalen Netzwerk, wenn der Zielserver keine CORS-Header sendet. LM Studio sendet standardmäßig **keine** CORS-Header. Deshalb schlägt der direkte Zugriff im Browser fehl.
+
+### Lösung: Lokalen CORS-Proxy starten
+
+1. Starte den mitgelieferten Proxy im Projektordner:
+```bash
+python cors_proxy.py
+```
+Der Proxy läuft auf `http://localhost:8081` und leitet Anfragen an `http://192.168.2.28:1234` weiter (mit CORS-Headern).
+
+2. Öffne die App im Browser (z.B. `http://localhost:8080` oder `index.html` direkt).
+
+3. Klicke auf das **Zahnrad-Icon** oben rechts und trage ein:
+   - **LM Studio Basis-URL:** `http://192.168.2.28:1234`
+   - **Lokalen CORS-Proxy verwenden:** ✅ aktivieren
+   - **Proxy-URL:** `http://localhost:8081`
+
+4. Klicke **Speichern**. Die App erkennt nun das Modell und du kannst chatten.
+
+### Ohne Proxy (nur in bestimmten Browsern/Einstellungen)
+
+Wenn du den Proxy nicht verwenden möchtest, öffne `index.html` direkt über `file://` im Browser. Einige Browser erlauben dann lokale Netzwerk-Anfragen, andere blockieren sie weiterhin aufgrund von CORS.
 
 ## Nutzung
 
 1. Starte LM Studio und lade ein Modell
-2. Aktiviere den Local Server auf Port 1234
-3. Öffne die Webseite
-4. Die Anwendung erkennt automatisch das Modell und verbindet sich mit dem Server
+2. Aktiviere den Local Server auf `192.168.2.28:1234`
+3. Starte den CORS-Proxy (`python cors_proxy.py`)
+4. Öffne die Webseite und konfiguriere die Einstellungen (Zahnrad)
 5. Starte direkt mit dem Chatten!
 
 ## GitHub Pages Deployment
 
-Diese Anwendung kann auf GitHub Pages veröffentlicht werden. **Wichtiger Hinweis zum Mixed-Content-Problem:**
+Diese Anwendung kann auf GitHub Pages veröffentlicht werden. **Wichtiger Hinweis:**
 
-### Problem
-GitHub Pages wird über HTTPS ausgeliefert, LM Studio verwendet standardmäßig HTTP. Moderne Browser blockieren HTTP-Anfragen von HTTPS-Seiten (Mixed Content).
-
-### Lösungen
-
-#### Option 1: Lokaler Zugriff (Empfohlen)
-Verwende die Anwendung lokal über `file://` oder über einen lokalen HTTP-Server. Dies funktioniert einwandfrei, da keine Mixed-Content-Einschränkung besteht.
-
-#### Option 2: HTTPS für LM Studio (Fortgeschritten)
-Wenn du die App auf GitHub Pages nutzen möchtest, musst du LM Studio über HTTPS erreichbar machen. Möglichkeiten:
-- Verwende einen Reverse Proxy mit SSL (z.B. nginx mit selbstsigniertem Zertifikat)
-- Verwende Tools wie ngrok mit HTTPS-Tunnel
-- Nutze CORS-freundliche Tunneling-Lösungen
-
-**Hinweis:** Die Anwendung prüft automatisch auf Mixed Content und zeigt entsprechende Fehlermeldungen.
+- GitHub Pages liefert über HTTPS aus, LM Studio nutzt HTTP im lokalen Netzwerk
+- Browser blockieren solche "Mixed Content"-Anfragen
+- Für die Nutzung auf GitHub Pages benötigst du einen öffentlich erreichbaren CORS-Proxy oder musst LM Studio über HTTPS erreichbar machen
 
 ### GitHub Pages einrichten
 
@@ -80,20 +91,28 @@ Die Seite wird dann unter `https://noahkafemann.github.io/local-ai-server/` verf
 
 ## Konfiguration
 
-Die Server-URL ist in `app.js` konfiguriert:
-```javascript
-const API_BASE = 'http://192.168.2.28:1234/v1';
-```
+Die Einstellungen werden über das Zahnrad-Icon in der App vorgenommen und im Browser (localStorage) gespeichert:
 
-Falls dein LM-Studio-Server auf einer anderen IP oder Port läuft, ändere einfach diese Konstante.
+- **LM Studio Basis-URL:** z.B. `http://192.168.2.28:1234` (ohne `/v1` am Ende)
+- **CORS-Proxy:** URL zu einem lokalen Proxy, z.B. `http://localhost:8081`
+
+## Dateien im Projekt
+
+| Datei | Zweck |
+|-------|-------|
+| `index.html` | Haupt-HTML-Seite |
+| `style.css` | Styling (Dark Mode, Responsive) |
+| `app.js` | Anwendungslogik, API-Kommunikation, Rendering |
+| `cors_proxy.py` | Lokaler Python-CORS-Proxy für Browser-Zugriff |
+| `README.md` | Diese Dokumentation |
 
 ## Technologien
 
 - **HTML5** - Semantische Struktur
 - **CSS3** - Modernes Styling mit CSS-Variablen
 - **Vanilla JavaScript** - Keine Frameworks
-- **[Marked.js](https://marked.js.org/)** - Markdown-Parsing
-- **[Highlight.js](https://highlightjs.org/)** - Syntax-Highlighting
+- **[Marked.js](https://marked.js.org/)** - Markdown-Parsing (CDN)
+- **[Highlight.js](https://highlightjs.org/)** - Syntax-Highlighting (CDN)
 
 ## Browser-Kompatibilität
 
@@ -106,8 +125,9 @@ Falls dein LM-Studio-Server auf einer anderen IP oder Port läuft, ändere einfa
 
 - Funktioniert nur im lokalen Netzwerk oder mit entsprechend konfiguriertem HTTPS-Tunnel
 - Benötigt aktiven LM-Studio-Server
-- Chatverlauf wird nur lokal im Browser gespeichert
+- Chatverlauf wird nur lokal im Browser gespeichert (localStorage)
 - Keine Multi-User-Unterstützung
+- CORS-Proxy erforderlich für zuverlässigen Browser-Zugriff
 
 ## Lizenz
 
