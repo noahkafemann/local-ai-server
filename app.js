@@ -1,27 +1,13 @@
 // Konfigurierbare API URL - kann über localStorage überschrieben werden
 let API_BASE = localStorage.getItem('lmstudio_api_base') || 'http://192.168.2.28:1234';
 let API_VERSION = localStorage.getItem('lmstudio_api_version') || 'v1';
-let USE_CORS_PROXY = localStorage.getItem('lmstudio_use_cors_proxy') === 'true';
-let CORS_PROXY_URL = localStorage.getItem('lmstudio_cors_proxy') || 'https://api.allorigins.win/raw?url=';
-
-function encodeProxyUrl(url) {
-    return encodeURIComponent(url);
-}
 
 function getChatCompletionsUrl() {
-    const target = `${API_BASE}/${API_VERSION}/chat/completions`;
-    if (USE_CORS_PROXY && CORS_PROXY_URL) {
-        return CORS_PROXY_URL + encodeProxyUrl(target);
-    }
-    return target;
+    return `${API_BASE}/${API_VERSION}/chat/completions`;
 }
 
 function getModelsUrl() {
-    const target = `${API_BASE}/${API_VERSION}/models`;
-    if (USE_CORS_PROXY && CORS_PROXY_URL) {
-        return CORS_PROXY_URL + encodeProxyUrl(target);
-    }
-    return target;
+    return `${API_BASE}/${API_VERSION}/models`;
 }
 
 let currentChatId = generateChatId();
@@ -29,6 +15,7 @@ let chats = loadChats();
 let currentModel = null;
 let isStreaming = false;
 let abortController = null;
+let lastError = null;
 
 // DOM Elements
 const sidebar = document.getElementById('sidebar');
@@ -57,7 +44,7 @@ function setupAPIConfig() {
         </svg>
     `;
     configBtn.className = 'config-btn';
-    configBtn.title = 'API & CORS konfigurieren';
+    configBtn.title = 'API URL konfigurieren';
     configBtn.style.cssText = `
         background: transparent;
         border: 1px solid var(--border-color);
@@ -92,7 +79,7 @@ function updateServerUrlDisplay() {
     }
 }
 
-// Show API & proxy settings dialog
+// Show API settings dialog
 function showAPIConfig() {
     const modal = document.createElement('div');
     modal.style.cssText = `
@@ -108,21 +95,17 @@ function showAPIConfig() {
                 <input type="text" id="settingApiBase" value="${API_BASE}" style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: monospace;">
                 <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">z.B. http://192.168.2.28:1234 (ohne /v1 am Ende)</div>
             </div>
-            <div style="margin-bottom: 16px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
-                    <input type="checkbox" id="settingUseProxy" ${USE_CORS_PROXY ? 'checked' : ''} style="accent-color: var(--accent-color);">
-                    CORS-Proxy aktivieren (bei Browser-CORS-Fehler)
-                </label>
-                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Leitet Anfragen über einen öffentlichen Proxy um CORS-Einschränkungen zu umgehen.</div>
+            <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-top: 8px;">
+                <h4 style="margin-top: 0; color: var(--accent-color); font-size: 13px;">Wichtig bei Verbindungsfehlern:</h4>
+                <ul style="font-size: 12px; color: var(--text-secondary); margin: 8px 0; padding-left: 20px;">
+                    <li>Öffne die Datei <code>index.html</code> direkt im Browser (Datei → Öffnen)</li>
+                    <li>Oder starte lokal: <code>python -m http.server 8080</code> und öffne <code>http://localhost:8080</code></li>
+                    <li>GitHub Pages (HTTPS) blockiert HTTP-Anfragen an lokale Server (Mixed Content)</li>
+                    <li>In LM Studio: Developer → Local Server muss auf <code>192.168.2.28:1234</code> laufen</li>
+                </ul>
             </div>
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary);">Proxy-URL</label>
-                <input type="text" id="settingProxyUrl" value="${CORS_PROXY_URL}" style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: monospace;">
-                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Empfohlen: https://api.allorigins.win/raw?url=</div>
-            </div>
-            <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                <button id="settingsCancel" style="padding: 8px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer;">Abbrechen</button>
-                <button id="settingsSave" style="padding: 8px 16px; background: var(--accent-color); border: none; border-radius: 6px; color: white; cursor: pointer;">Speichern</button>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+                <button id="settingsCancel" style="padding: 8px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer;">Schließen</button>
             </div>
         </div>
     `;
@@ -130,28 +113,6 @@ function showAPIConfig() {
     document.body.appendChild(modal);
     
     document.getElementById('settingsCancel').onclick = () => document.body.removeChild(modal);
-    document.getElementById('settingsSave').onclick = () => {
-        const baseUrl = document.getElementById('settingApiBase').value.trim().replace(/\/+$/, '').replace(/\/v1$/, '');
-        const useProxy = document.getElementById('settingUseProxy').checked;
-        const proxyUrl = document.getElementById('settingProxyUrl').value.trim();
-        
-        API_BASE = baseUrl;
-        USE_CORS_PROXY = useProxy;
-        CORS_PROXY_URL = proxyUrl || 'https://api.allorigins.win/raw?url=';
-        
-        localStorage.setItem('lmstudio_api_base', API_BASE);
-        localStorage.setItem('lmstudio_use_cors_proxy', USE_CORS_PROXY);
-        localStorage.setItem('lmstudio_cors_proxy', CORS_PROXY_URL);
-        
-        updateServerUrlDisplay();
-        modelNameEl.textContent = 'Wird erkannt...';
-        statusText.textContent = 'Verbinde...';
-        statusDot.classList.remove('connected', 'error');
-        fetchModel();
-        checkConnection();
-        
-        document.body.removeChild(modal);
-    };
     
     modal.onclick = (e) => {
         if (e.target === modal) document.body.removeChild(modal);
@@ -160,6 +121,9 @@ function showAPIConfig() {
 
 // Initialize app
 async function init() {
+    // Clean up old proxy settings
+    localStorage.removeItem('lmstudio_use_cors_proxy');
+    localStorage.removeItem('lmstudio_cors_proxy');
     setupEventListeners();
     setupAPIConfig();
     await fetchModel();
@@ -258,11 +222,10 @@ async function fetchModel() {
     }
 }
 
-// Fetch with CORS handling - tries direct first, then proxy
+// Fetch with CORS handling
 async function fetchWithCors(url, options = {}) {
     try {
-        // Try direct request first
-        const directResponse = await fetch(url, {
+        const response = await fetch(url, {
             ...options,
             mode: 'cors',
             headers: {
@@ -270,24 +233,9 @@ async function fetchWithCors(url, options = {}) {
                 ...options.headers,
             },
         });
-        return directResponse;
-    } catch (directError) {
-        console.warn('Direct fetch failed, trying CORS proxy:', directError.message);
-        
-        // If CORS proxy is enabled, retry through proxy
-        if (USE_CORS_PROXY && CORS_PROXY_URL && !url.includes('allorigins')) {
-            const proxyUrl = CORS_PROXY_URL + encodeProxyUrl(url.replace(CORS_PROXY_URL, ''));
-            const proxyResponse = await fetch(proxyUrl, {
-                ...options,
-                headers: {
-                    'Accept': 'application/json',
-                    ...options.headers,
-                },
-            });
-            return proxyResponse;
-        }
-        
-        throw directError;
+        return response;
+    } catch (error) {
+        throw error;
     }
 }
 
@@ -684,10 +632,14 @@ async function getAIResponse() {
         let errorMsg = '';
         if (error.name === 'AbortError') {
             errorMsg = 'Anfrage abgebrochen.';
-        } else if (error.message && error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
-            errorMsg = 'CORS-Fehler: Der Browser blockiert Anfragen an LM Studio. ';
-            errorMsg += 'Klicke auf das Zahnrad und aktiviere "CORS-Proxy", ';
-            errorMsg += 'oder öffne die App über http://localhost:8080 statt https://';
+        } else if (error.message && error.message.includes('NetworkError')) {
+            errorMsg = 'Netzwerkfehler. ';
+            if (window.location.protocol === 'https:') {
+                errorMsg += 'GitHub Pages (HTTPS) blockiert HTTP-Anfragen an lokale Server. ';
+                errorMsg += 'Öffne index.html direkt im Browser oder nutze einen lokalen Server (python -m http.server).';
+            } else {
+                errorMsg += 'Stelle sicher, dass LM Studio läuft und erreichbar ist.';
+            }
         } else if (error.message && error.message.includes('HTTP')) {
             errorMsg = `Server-Fehler: ${error.message}. LM Studio antwortet, aber mit einem Fehler.`;
         } else {
