@@ -1,13 +1,27 @@
 // Konfigurierbare API URL - kann über localStorage überschrieben werden
 let API_BASE = localStorage.getItem('lmstudio_api_base') || 'http://192.168.2.28:1234';
 let API_VERSION = localStorage.getItem('lmstudio_api_version') || 'v1';
+let USE_CORS_PROXY = localStorage.getItem('lmstudio_use_cors_proxy') === 'true';
+let CORS_PROXY_URL = localStorage.getItem('lmstudio_cors_proxy') || 'https://api.allorigins.win/raw?url=';
+
+function encodeProxyUrl(url) {
+    return encodeURIComponent(url);
+}
 
 function getChatCompletionsUrl() {
-    return `${API_BASE}/${API_VERSION}/chat/completions`;
+    const target = `${API_BASE}/${API_VERSION}/chat/completions`;
+    if (USE_CORS_PROXY && CORS_PROXY_URL) {
+        return CORS_PROXY_URL + encodeProxyUrl(target);
+    }
+    return target;
 }
 
 function getModelsUrl() {
-    return `${API_BASE}/${API_VERSION}/models`;
+    const target = `${API_BASE}/${API_VERSION}/models`;
+    if (USE_CORS_PROXY && CORS_PROXY_URL) {
+        return CORS_PROXY_URL + encodeProxyUrl(target);
+    }
+    return target;
 }
 
 let currentChatId = generateChatId();
@@ -39,11 +53,11 @@ function setupAPIConfig() {
     configBtn.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"/>
-            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319A1.873 1.873 0 0010.7 2.965l.292-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 00.52 1.255l.319.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 00-.52 1.255l.16.292c.415.764-.42 1.6-1.185 1.184l-.292-.159a1.873 1.873 0 00-1.255.52l-.094.319c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 00-1.255-.52l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.292A1.873 1.873 0 003.81 9.62l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 003.81 6.067l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 001.255-.52l.094-.319z"/>
+            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319A1.873 1.873 0 0010.7 2.965l.292-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 00.52 1.255l.319.094c.835.246.835 1.428 0 1.674l-.319.094a1.873.873 0 00-.52 1.255l.16.292c.415.764-.42 1.6-1.185 1.184l-.292-.159a1.873.873 0 00-1.255.52l-.094.319c-.246.835-1.428.835-1.674 0l-.094-.319a1.873.873 0 00-1.255-.52l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.292A1.873 1.873 0 003.81 9.62l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873.873 0 003.81 6.067l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873.873 0 001.255-.52l.094-.319z"/>
         </svg>
     `;
     configBtn.className = 'config-btn';
-    configBtn.title = 'API URL konfigurieren';
+    configBtn.title = 'API & CORS konfigurieren';
     configBtn.style.cssText = `
         background: transparent;
         border: 1px solid var(--border-color);
@@ -67,7 +81,6 @@ function setupAPIConfig() {
     configBtn.onclick = showAPIConfig;
     headerInfo.appendChild(configBtn);
     
-    // Update display URL
     updateServerUrlDisplay();
 }
 
@@ -84,7 +97,6 @@ function showAPIConfig() {
     const currentUrl = API_BASE;
     const newUrl = prompt('LM Studio API Basis-URL (z.B. http://192.168.2.28:1234):', currentUrl);
     if (newUrl && newUrl !== currentUrl) {
-        // Remove trailing slash and /v1 if present
         let cleanedUrl = newUrl.trim().replace(/\/+$/, '');
         if (cleanedUrl.endsWith('/v1')) {
             cleanedUrl = cleanedUrl.replace(/\/v1$/, '');
@@ -131,7 +143,6 @@ function setupEventListeners() {
         updateSendButtonState();
     });
     
-    // Close sidebar when clicking outside on mobile
     document.addEventListener('click', (e) => {
         if (window.innerWidth <= 768) {
             if (!sidebar.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
@@ -182,8 +193,8 @@ function saveChats() {
 // Fetch model from LM Studio
 async function fetchModel() {
     try {
-        const response = await fetch(getModelsUrl());
-        if (!response.ok) throw new Error('Failed to fetch models');
+        const response = await fetchWithCors(getModelsUrl(), { method: 'GET' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         
         if (data.data && data.data.length > 0) {
@@ -201,16 +212,46 @@ async function fetchModel() {
     }
 }
 
-// Test connection with detailed logging
-async function testConnection() {
+// Fetch with CORS handling - tries direct first, then proxy
+async function fetchWithCors(url, options = {}) {
     try {
-        console.log('Testing connection to:', getModelsUrl());
-        const response = await fetch(getModelsUrl(), {
-            method: 'GET',
+        // Try direct request first
+        const directResponse = await fetch(url, {
+            ...options,
             mode: 'cors',
             headers: {
                 'Accept': 'application/json',
+                ...options.headers,
             },
+        });
+        return directResponse;
+    } catch (directError) {
+        console.warn('Direct fetch failed, trying CORS proxy:', directError.message);
+        
+        // If CORS proxy is enabled, retry through proxy
+        if (USE_CORS_PROXY && CORS_PROXY_URL && !url.includes('allorigins')) {
+            const proxyUrl = CORS_PROXY_URL + encodeProxyUrl(url.replace(CORS_PROXY_URL, ''));
+            const proxyResponse = await fetch(proxyUrl, {
+                ...options,
+                headers: {
+                    'Accept': 'application/json',
+                    ...options.headers,
+                },
+            });
+            return proxyResponse;
+        }
+        
+        throw directError;
+    }
+}
+
+// Test connection with detailed diagnostics
+async function testConnection() {
+    try {
+        console.log('Testing connection to:', getModelsUrl());
+        const response = await fetchWithCors(getModelsUrl(), {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
         });
         console.log('Response status:', response.status);
         const data = await response.json();
@@ -262,7 +303,6 @@ function toggleMobileSidebar() {
 
 // Start new chat
 function startNewChat() {
-    // Save current chat if it has messages
     if (chats[currentChatId] && chats[currentChatId].messages && chats[currentChatId].messages.length > 0) {
         saveChats();
     }
@@ -281,7 +321,6 @@ function startNewChat() {
     loadCurrentChat();
     messageInput.focus();
     
-    // Close mobile sidebar
     if (window.innerWidth <= 768) {
         sidebar.classList.remove('open');
     }
@@ -391,9 +430,7 @@ function renderMessage(role, content, animate = true) {
     textDiv.className = 'message-text';
     
     if (role === 'assistant') {
-        // Render markdown
         textDiv.innerHTML = marked.parse(content || '');
-        // Apply syntax highlighting
         textDiv.querySelectorAll('pre code').forEach((block) => {
             hljs.highlightElement(block);
         });
@@ -454,13 +491,11 @@ async function handleSendMessage() {
     const message = messageInput.value.trim();
     if (!message || isStreaming) return;
     
-    // Update chat title if it's the first message
     if (chats[currentChatId].messages.length === 0) {
         chats[currentChatId].title = message.length > 50 ? message.substring(0, 47) + '...' : message;
         renderChatHistory();
     }
     
-    // Add user message
     chats[currentChatId].messages.push({
         role: 'user',
         content: message
@@ -471,10 +506,8 @@ async function handleSendMessage() {
     messageInput.style.height = 'auto';
     updateSendButtonState();
     
-    // Save chats
     saveChats();
     
-    // Start streaming response
     await getAIResponse();
 }
 
@@ -484,7 +517,6 @@ async function getAIResponse() {
     updateSendButtonState();
     sendBtn.disabled = true;
     
-    // Prepare messages for API (send full conversation history)
     const messages = chats[currentChatId].messages.map(m => ({
         role: m.role,
         content: m.content
@@ -495,7 +527,7 @@ async function getAIResponse() {
     try {
         abortController = new AbortController();
         
-        const response = await fetch(getChatCompletionsUrl(), {
+        const response = await fetchWithCors(getChatCompletionsUrl(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -516,7 +548,6 @@ async function getAIResponse() {
         
         removeLoadingIndicator();
         
-        // Create assistant message element
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message assistant-message';
         
@@ -561,7 +592,6 @@ async function getAIResponse() {
                         const content = parsed.choices?.[0]?.delta?.content || '';
                         if (content) {
                             fullContent += content;
-                            // Render incrementally as markdown
                             textDiv.innerHTML = marked.parse(fullContent);
                             textDiv.querySelectorAll('pre code').forEach((block) => {
                                 hljs.highlightElement(block);
@@ -575,7 +605,6 @@ async function getAIResponse() {
             }
         }
         
-        // Save assistant message
         if (fullContent) {
             chats[currentChatId].messages.push({
                 role: 'assistant',
@@ -588,7 +617,6 @@ async function getAIResponse() {
         console.error('Error getting AI response:', error);
         removeLoadingIndicator();
         
-        // Show error message
         const errorDiv = document.createElement('div');
         errorDiv.className = 'message assistant-message';
         
@@ -607,13 +635,18 @@ async function getAIResponse() {
         textDiv.className = 'message-text';
         textDiv.style.color = 'var(--error-color)';
         
-        let errorMsg = 'Verbindungsfehler. ';
+        let errorMsg = '';
         if (error.name === 'AbortError') {
-            errorMsg += 'Anfrage abgebrochen.';
-        } else if (window.location.protocol === 'https:' && API_BASE.startsWith('http:')) {
-            errorMsg += 'Gemischter Inhalt (HTTPS zu HTTP) wird von Browsern blockiert. Siehe README für Lösungen.';
+            errorMsg = 'Anfrage abgebrochen.';
+        } else if (error.message && error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+            errorMsg = 'CORS-Fehler: Der Browser blockiert Anfragen an LM Studio. ';
+            errorMsg += 'Klicke auf das Zahnrad und aktiviere "CORS-Proxy", ';
+            errorMsg += 'oder öffne die App über http://localhost:8080 statt https://';
+        } else if (error.message && error.message.includes('HTTP')) {
+            errorMsg = `Server-Fehler: ${error.message}. LM Studio antwortet, aber mit einem Fehler.`;
         } else {
-            errorMsg += 'Stelle sicher, dass LM Studio läuft und unter http://192.168.2.28:1234 erreichbar ist.';
+            errorMsg = `Verbindungsfehler: ${error.message || 'Unbekannter Fehler'}. `;
+            errorMsg += 'Stelle sicher, dass LM Studio läuft und erreichbar ist.';
         }
         
         textDiv.textContent = errorMsg;
