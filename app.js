@@ -92,24 +92,70 @@ function updateServerUrlDisplay() {
     }
 }
 
-// Show API config dialog
+// Show API & proxy settings dialog
 function showAPIConfig() {
-    const currentUrl = API_BASE;
-    const newUrl = prompt('LM Studio API Basis-URL (z.B. http://192.168.2.28:1234):', currentUrl);
-    if (newUrl && newUrl !== currentUrl) {
-        let cleanedUrl = newUrl.trim().replace(/\/+$/, '');
-        if (cleanedUrl.endsWith('/v1')) {
-            cleanedUrl = cleanedUrl.replace(/\/v1$/, '');
-        }
-        API_BASE = cleanedUrl;
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.7); z-index: 1000;
+        display: flex; align-items: center; justify-content: center;
+    `;
+    modal.innerHTML = `
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; min-width: 420px; color: var(--text-primary);">
+            <h3 style="margin-top: 0; color: var(--text-primary);">Einstellungen</h3>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary);">LM Studio Basis-URL</label>
+                <input type="text" id="settingApiBase" value="${API_BASE}" style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: monospace;">
+                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">z.B. http://192.168.2.28:1234 (ohne /v1 am Ende)</div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                    <input type="checkbox" id="settingUseProxy" ${USE_CORS_PROXY ? 'checked' : ''} style="accent-color: var(--accent-color);">
+                    CORS-Proxy aktivieren (bei Browser-CORS-Fehler)
+                </label>
+                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Leitet Anfragen über einen öffentlichen Proxy um CORS-Einschränkungen zu umgehen.</div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary);">Proxy-URL</label>
+                <input type="text" id="settingProxyUrl" value="${CORS_PROXY_URL}" style="width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-family: monospace;">
+                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Empfohlen: https://api.allorigins.win/raw?url=</div>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button id="settingsCancel" style="padding: 8px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer;">Abbrechen</button>
+                <button id="settingsSave" style="padding: 8px 16px; background: var(--accent-color); border: none; border-radius: 6px; color: white; cursor: pointer;">Speichern</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('settingsCancel').onclick = () => document.body.removeChild(modal);
+    document.getElementById('settingsSave').onclick = () => {
+        const baseUrl = document.getElementById('settingApiBase').value.trim().replace(/\/+$/, '').replace(/\/v1$/, '');
+        const useProxy = document.getElementById('settingUseProxy').checked;
+        const proxyUrl = document.getElementById('settingProxyUrl').value.trim();
+        
+        API_BASE = baseUrl;
+        USE_CORS_PROXY = useProxy;
+        CORS_PROXY_URL = proxyUrl || 'https://api.allorigins.win/raw?url=';
+        
         localStorage.setItem('lmstudio_api_base', API_BASE);
+        localStorage.setItem('lmstudio_use_cors_proxy', USE_CORS_PROXY);
+        localStorage.setItem('lmstudio_cors_proxy', CORS_PROXY_URL);
+        
         updateServerUrlDisplay();
         modelNameEl.textContent = 'Wird erkannt...';
         statusText.textContent = 'Verbinde...';
         statusDot.classList.remove('connected', 'error');
         fetchModel();
         checkConnection();
-    }
+        
+        document.body.removeChild(modal);
+    };
+    
+    modal.onclick = (e) => {
+        if (e.target === modal) document.body.removeChild(modal);
+    };
 }
 
 // Initialize app
