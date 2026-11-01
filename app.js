@@ -5,13 +5,13 @@ let USE_CORS_PROXY = localStorage.getItem('lmstudio_use_cors_proxy') === 'true';
 let CORS_PROXY_URL = localStorage.getItem('lmstudio_cors_proxy') || '';
 
 function getChatCompletionsUrl() {
-    const target = `${API_BASE}/${API_VERSION}/chat/completions`;
-    return USE_CORS_PROXY && CORS_PROXY_URL ? CORS_PROXY_URL + target : target;
+    const path = `/${API_VERSION}/chat/completions`;
+    return USE_CORS_PROXY && CORS_PROXY_URL ? CORS_PROXY_URL + path : `${API_BASE}${path}`;
 }
 
 function getModelsUrl() {
-    const target = `${API_BASE}/${API_VERSION}/models`;
-    return USE_CORS_PROXY && CORS_PROXY_URL ? CORS_PROXY_URL + target : target;
+    const path = `/${API_VERSION}/models`;
+    return USE_CORS_PROXY && CORS_PROXY_URL ? CORS_PROXY_URL + path : `${API_BASE}${path}`;
 }
 
 let currentChatId = generateChatId();
