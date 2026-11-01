@@ -64,13 +64,44 @@ Der Proxy läuft auf `http://localhost:8081` und leitet Anfragen an `http://192.
 
 Wenn du den Proxy nicht verwenden möchtest, öffne `index.html` direkt über `file://` im Browser. Einige Browser erlauben dann lokale Netzwerk-Anfragen, andere blockieren sie weiterhin aufgrund von CORS.
 
-## Nutzung
+## Nutzung über das lokale Netzwerk (anderes Gerät)
 
-1. Starte LM Studio und lade ein Modell
-2. Aktiviere den Local Server auf `192.168.2.28:1234`
-3. Starte den CORS-Proxy (`python cors_proxy.py`)
-4. Öffne die Webseite und konfiguriere die Einstellungen (Zahnrad)
-5. Starte direkt mit dem Chatten!
+Du kannst von einem anderen Gerät im selben WLAN auf deinen KI-Server chatten. Die App ist ein reines Frontend – sie verbindet sich direkt mit deinem LM-Studio-Server.
+
+### Einrichtung für cross-Device Nutzung
+
+1. **LM Studio:** Stelle sicher, dass der Local Server auf `0.0.0.0:1234` läuft (nicht nur `localhost`), damit er im Netzwerk erreichbar ist. Die URL ist dann z.B. `http://192.168.2.28:1234`.
+
+2. **App hosten:** Starte einen lokalen Webserver auf deinem Hauptgerät:
+```bash
+python -m http.server 8080
+```
+
+3. **CORS-Proxy starten** (wichtig, damit der Browser des anderen Geräts nicht blockiert):
+```bash
+python cors_proxy.py
+```
+Der Proxy läuft auf `http://localhost:8081` und leitet an `http://192.168.2.28:1234` weiter.
+
+4. **Auf dem anderen Gerät** (Handy, Laptop, Tablet im selben WLAN) öffne:
+```
+http://<IP-deines-Hauptgeraets>:8080
+```
+z.B. `http://192.168.2.28:8080`
+
+5. **In der App (Zahnrad):** Trage ein:
+   - **LM Studio Basis-URL:** `http://192.168.2.28:1234`
+   - **Lokalen CORS-Proxy verwenden:** ✅ aktivieren
+   - **Proxy-URL:** `http://192.168.2.28:8081` (die IP deines Hauptgeräts, nicht localhost!)
+
+6. **Speichern** – jetzt kannst du vom anderen Gerät aus chatten.
+
+### Wichtige Hinweise
+
+- Beide Geräte müssen im selben WLAN/Netzwerk sein
+- Die Firewall muss Ports 8080 und 8081 erlauben
+- LM Studio muss im Local Server Modus laufen und im Netzwerk sichtbar sein
+- Alle Chats werden nur lokal im Browser gespeichert, nicht auf dem Server
 
 ## GitHub Pages Deployment
 

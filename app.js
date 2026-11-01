@@ -27,6 +27,8 @@ const sidebarToggle = document.getElementById('sidebarToggle');
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
 const newChatBtn = document.getElementById('newChatBtn');
 const clearAllBtn = document.getElementById('clearAllBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
 const chatHistory = document.getElementById('chatHistory');
 const chatContainer = document.getElementById('chatContainer');
 const messagesDiv = document.getElementById('messages');
@@ -176,8 +178,14 @@ async function init() {
 function setupEventListeners() {
     newChatBtn.addEventListener('click', startNewChat);
     clearAllBtn.addEventListener('click', clearAllChats);
+    settingsBtn.addEventListener('click', showAPIConfig);
     sidebarToggle.addEventListener('click', toggleSidebar);
     mobileMenuBtn.addEventListener('click', toggleMobileSidebar);
+    
+    // Sidebar overlay closes sidebar
+    sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+    });
     
     sendBtn.addEventListener('click', handleSendMessage);
     
@@ -391,10 +399,66 @@ function renderChatHistory() {
         if (chatId === currentChatId) {
             item.classList.add('active');
         }
-        item.textContent = chat.title || 'Neuer Chat';
-        item.title = chat.title || 'Neuer Chat';
+        
+        const mainDiv = document.createElement('div');
+        mainDiv.className = 'chat-item-main';
+        
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'chat-item-title';
+        titleDiv.textContent = chat.title || 'Neuer Chat';
+        
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'chat-item-date';
+        dateDiv.textContent = new Date(chat.createdAt || 0).toLocaleDateString('de-DE', { 
+            weekday: 'short', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        mainDiv.appendChild(titleDiv);
+        mainDiv.appendChild(dateDiv);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'chat-delete-btn';
+        deleteBtn.title = 'Chat löschen';
+        deleteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.133 21H7.867A2 2 0 0 1 7 19.142L5.133 7H19zM14 6l-.293-.293a1 1 0 0 0-1.414 0L12 7.586l-1.293-1.293a1 1 0 0 0-1.414 0L9 7.586 7.707 6.293a1 1 0 0 0-1.414 0L6.293 7.707 5 8.993l.293.293a1 1 0 0 0 0 1.414l1.293 1.293a1 1 0 0 0 1.414 0L12 10.414l1.293 1.293a1 1 0 0 0 1.414 0L14.707 8.993l.293-.293a1 1 0 0 0 0-1.414L14.293 6 14 6z"/></svg>';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteChat(chatId);
+        };
+        
+        item.appendChild(mainDiv);
+        item.appendChild(deleteBtn);
         item.onclick = () => switchChat(chatId);
         chatHistory.appendChild(item);
+    }
+}
+
+// Delete single chat
+function deleteChat(chatId) {
+    const chat = chats[chatId];
+    if (!chat) return;
+    
+    if (confirm(`Chat "${chat.title || 'Neuer Chat'}" wirklich löschen?`)) {
+        delete chats[chatId];
+        saveChats();
+        
+        if (chatId === currentChatId) {
+            currentChatId = generateChatId();
+            chats[currentChatId] = {
+                id: currentChatId,
+                title: 'Neuer Chat',
+                messages: [],
+                createdAt: Date.now()
+            };
+        }
+        
+        renderChatHistory();
+        loadCurrentChat();
+        
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove('open');
+        }
     }
 }
 
