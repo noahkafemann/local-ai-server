@@ -1,7 +1,14 @@
 // Konfigurierbare API URL - kann über localStorage überschrieben werden
-let API_BASE = localStorage.getItem('lmstudio_api_base') || 'http://192.168.2.28:1234/v1';
-const API_CHAT_COMPLETIONS = () => `${API_BASE}/chat/completions`;
-const API_MODELS = () => `${API_BASE}/models`;
+let API_BASE = localStorage.getItem('lmstudio_api_base') || 'http://192.168.2.28:1234';
+let API_VERSION = localStorage.getItem('lmstudio_api_version') || 'v1';
+
+function getChatCompletionsUrl() {
+    return `${API_BASE}/${API_VERSION}/chat/completions`;
+}
+
+function getModelsUrl() {
+    return `${API_BASE}/${API_VERSION}/models`;
+}
 
 let currentChatId = generateChatId();
 let chats = loadChats();
@@ -68,16 +75,21 @@ function setupAPIConfig() {
 function updateServerUrlDisplay() {
     const display = document.getElementById('serverUrlDisplay');
     if (display) {
-        display.textContent = API_BASE.replace('/v1', '');
+        display.textContent = `${API_BASE}/${API_VERSION}`;
     }
 }
 
 // Show API config dialog
 function showAPIConfig() {
-    const currentUrl = API_BASE.replace('/v1', '');
-    const newUrl = prompt('LM Studio API URL (z.B. http://192.168.2.28:1234):', currentUrl);
+    const currentUrl = API_BASE;
+    const newUrl = prompt('LM Studio API Basis-URL (z.B. http://192.168.2.28:1234):', currentUrl);
     if (newUrl && newUrl !== currentUrl) {
-        API_BASE = newUrl.endsWith('/v1') ? newUrl : newUrl.replace(/\/$/, '') + '/v1';
+        // Remove trailing slash and /v1 if present
+        let cleanedUrl = newUrl.trim().replace(/\/+$/, '');
+        if (cleanedUrl.endsWith('/v1')) {
+            cleanedUrl = cleanedUrl.replace(/\/v1$/, '');
+        }
+        API_BASE = cleanedUrl;
         localStorage.setItem('lmstudio_api_base', API_BASE);
         updateServerUrlDisplay();
         modelNameEl.textContent = 'Wird erkannt...';
@@ -170,7 +182,7 @@ function saveChats() {
 // Fetch model from LM Studio
 async function fetchModel() {
     try {
-        const response = await fetch(API_MODELS());
+        const response = await fetch(getModelsUrl());
         if (!response.ok) throw new Error('Failed to fetch models');
         const data = await response.json();
         
@@ -189,11 +201,37 @@ async function fetchModel() {
     }
 }
 
+// Test connection with detailed logging
+async function testConnection() {
+    try {
+        console.log('Testing connection to:', getModelsUrl());
+        const response = await fetch(getModelsUrl(), {
+            method: 'GET',
+            mode: 'cors',
+            headers: {
+                'Accept': 'application/json',
+            },
+        });
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Models response:', data);
+        if (response.ok && data.data && data.data.length > 0) {
+            currentModel = data.data[0].id;
+            modelNameEl.textContent = currentModel;
+        }
+        updateConnectionStatus(response.ok);
+        return response.ok;
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        updateConnectionStatus(false);
+        return false;
+    }
+}
+
 // Check connection
 async function checkConnection() {
     try {
-        const response = await fetch(API_MODELS(), { method: 'GET' });
-        updateConnectionStatus(response.ok);
+        await testConnection();
     } catch (error) {
         updateConnectionStatus(false);
     }
@@ -457,10 +495,11 @@ async function getAIResponse() {
     try {
         abortController = new AbortController();
         
-        const response = await fetch(API_CHAT_COMPLETIONS(), {
+        const response = await fetch(getChatCompletionsUrl(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
             },
             body: JSON.stringify({
                 model: currentModel,
