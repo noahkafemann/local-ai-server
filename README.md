@@ -49,7 +49,7 @@ Browser blockieren standardmäßig Anfragen von einer Webseite (selbst localhost
 ```bash
 python cors_proxy.py
 ```
-Der Proxy läuft auf `http://localhost:8081` und leitet Anfragen an `http://192.168.2.28:1234` weiter (mit CORS-Headern).
+Der Proxy läuft standardmäßig auf `http://0.0.0.0:8081` und leitet Anfragen an `http://192.168.2.28:1234` weiter (mit CORS-Headern).
 
 2. Öffne die App im Browser (z.B. `http://localhost:8080` oder `index.html` direkt).
 
@@ -59,6 +59,31 @@ Der Proxy läuft auf `http://localhost:8081` und leitet Anfragen an `http://192.
    - **Proxy-URL:** `http://localhost:8081`
 
 4. Klicke **Speichern**. Die App erkennt nun das Modell und du kannst chatten.
+
+### Von einem anderen Gerät im selben Netzwerk zugreifen (z.B. iPhone, iPad, anderes Laptop)
+
+Damit du von einem anderen Gerät (z.B. deinem iPhone im selben WLAN) auf den KI-Server chatten kannst:
+
+1. **IP deines PCs herausfinden** (Windows: `ipconfig`, Mac/Linux: `ifconfig` oder `hostname -I`) – z.B. `192.168.2.50`
+
+2. **Webserver starten** (damit die App erreichbar ist):
+```bash
+python -m http.server 8080 --bind 0.0.0.0
+```
+
+3. **CORS-Proxy starten** (muss auf 0.0.0.0 lauschen, damit andere Geräte darauf zugreifen können):
+```bash
+python cors_proxy.py
+```
+
+4. **Auf dem anderen Gerät** im Browser öffnen:
+   - Die App: `http://<IP-deines-PCs>:8080` (z.B. `http://192.168.2.50:8080`)
+   - Im Zahnrad-Menü eintragen:
+     - **LM Studio Basis-URL:** `http://192.168.2.28:1234` (die IP deines LM-Studio-Servers)
+     - **Lokalen CORS-Proxy verwenden:** ✅ aktivieren
+     - **Proxy-URL:** `http://<IP-deines-PCs>:8081` (z.B. `http://192.168.2.50:8081`)
+
+5. **Firewall prüfen:** Stelle sicher, dass die Ports `8080` und `8081` in deiner Firewall für eingehende Verbindungen freigegeben sind.
 
 ### Ohne Proxy (nur in bestimmten Browsern/Einstellungen)
 

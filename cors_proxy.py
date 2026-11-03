@@ -20,6 +20,7 @@ import sys
 
 LM_STUDIO_BASE = "http://192.168.2.28:1234"
 PROXY_PORT = 8081
+PROXY_HOST = "0.0.0.0"
 
 
 class CORSProxyHandler(BaseHTTPRequestHandler):
@@ -105,7 +106,7 @@ class CORSProxyHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    server = HTTPServer(("127.0.0.1", PROXY_PORT), CORSProxyHandler)
+    server = HTTPServer((PROXY_HOST, PROXY_PORT), CORSProxyHandler)
     print(f"CORS-Proxy läuft auf http://localhost:{PROXY_PORT}")
     print(f"Leitet an {LM_STUDIO_BASE} weiter")
     print("Strg+C zum Beenden\n")
