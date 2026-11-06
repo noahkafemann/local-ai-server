@@ -105,7 +105,7 @@ class CombinedHandler(BaseHTTPRequestHandler):
     def _proxy(self, method, body=None):
         # Pfad nach /proxy/ entfernen -> z.B. /v1/models
         target_path = self.path[len("/proxy/"):]
-        target_url = LM_STUDIO_BASE + target_path
+        target_url = LM_STUDIO_BASE.rstrip("/") + "/" + target_path.lstrip("/")
 
         try:
             req = urllib.request.Request(target_url, data=body, method=method)
