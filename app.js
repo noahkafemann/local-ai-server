@@ -20,8 +20,22 @@ function getModelsUrl() {
     return `${API_BASE}${path}`;
 }
 
-let currentChatId = generateChatId();
+let currentChatId = localStorage.getItem('lmstudio_current_chat_id') || generateChatId();
 let chats = loadChats();
+
+// Wenn keine Chats existieren oder der gespeicherte ID nicht mehr da ist, ersten oder neuen nehmen
+if (!chats[currentChatId]) {
+    const existingIds = Object.keys(chats);
+    currentChatId = existingIds.length > 0 ? existingIds[0] : generateChatId();
+    if (!chats[currentChatId]) {
+        chats[currentChatId] = {
+            id: currentChatId,
+            title: 'Neuer Chat',
+            messages: [],
+            createdAt: Date.now()
+        };
+    }
+}
 let currentModel = null;
 let isStreaming = false;
 let abortController = null;
@@ -254,6 +268,7 @@ function loadChats() {
 function saveChats() {
     try {
         localStorage.setItem('local-ai-chats', JSON.stringify(chats));
+        localStorage.setItem('lmstudio_current_chat_id', currentChatId);
     } catch (e) {
         // Ignore localStorage errors
     }
